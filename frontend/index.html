@@ -108,6 +108,21 @@
         let cy;
         const API_BASE = window.location.origin;
 
+        // Global error handler
+        window.addEventListener('error', function(event) {
+            console.error('❌ Global error:', {
+                message: event.message,
+                filename: event.filename,
+                lineno: event.lineno,
+                colno: event.colno,
+                error: event.error
+            });
+        });
+
+        window.addEventListener('unhandledrejection', function(event) {
+            console.error('❌ Unhandled promise rejection:', event.reason);
+        });
+
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
             initCytoscape();
@@ -177,6 +192,8 @@
             formData.append('file', file);
 
             try {
+                console.log('📤 Uploading file:', file.name, 'Size:', file.size);
+                
                 const response = await fetch(`${API_BASE}/ingest/upload`, {
                     method: 'POST',
                     body: formData
@@ -184,15 +201,18 @@
 
                 if (response.ok) {
                     const result = await response.json();
+                    console.log('✅ Upload successful:', result);
                     alert(`File uploaded successfully! Created ${result.chunks_created} chunks and ${result.concepts_extracted} concepts.`);
                     loadStats();
                     loadGraph();
                     fileInput.value = '';
                 } else {
-                    const error = await response.json();
-                    alert(`Upload failed: ${error.detail}`);
+                    const errorText = await response.text();
+                    console.error('❌ Upload failed:', response.status, errorText);
+                    alert(`Upload failed: ${errorText}`);
                 }
             } catch (error) {
+                console.error('❌ Upload error:', error);
                 alert(`Upload failed: ${error.message}`);
             }
         }
@@ -240,6 +260,8 @@
             }
 
             try {
+                console.log('🤖 Asking question:', question);
+                
                 const response = await fetch(`${API_BASE}/qa`, {
                     method: 'POST',
                     headers: {
@@ -248,24 +270,33 @@
                     body: JSON.stringify({ question: question })
                 });
 
-                if (response.ok) {
-                    const result = await response.json();
-                    console.log('Q&A Response:', result); // Debug log
-                    
-                    showAnswer(result);
-                    
-                    // Highlight related nodes with safety check
-                    if (result && result.nodes_used && Array.isArray(result.nodes_used)) {
-                        highlightNodes(result.nodes_used);
-                    } else {
-                        console.warn('No nodes_used found in response or not an array');
-                    }
-                } else {
-                    const error = await response.json();
-                    alert(`Question failed: ${error.detail}`);
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
                 }
+
+                const result = await response.json();
+                console.log('✅ Q&A Response received:', {
+                    answerLength: result.answer?.length || 0,
+                    sourcesCount: result.sources?.length || 0,
+                    nodesUsed: result.nodes_used || []
+                });
+                
+                showAnswer(result);
+                
+                // Highlight related nodes with safety check
+                if (result && result.nodes_used && Array.isArray(result.nodes_used)) {
+                    console.log('🎯 Highlighting nodes:', result.nodes_used);
+                    highlightNodes(result.nodes_used);
+                } else {
+                    console.warn('⚠️ No nodes_used found in response or not an array:', result);
+                }
+                
             } catch (error) {
-                console.error('Q&A Error:', error);
+                console.error('❌ Q&A Error:', {
+                    message: error.message,
+                    stack: error.stack
+                });
                 alert(`Question failed: ${error.message}`);
             }
         }
@@ -290,14 +321,28 @@
 
         async function loadGraph() {
             try {
+                console.log('📊 Loading graph data...');
                 const response = await fetch(`${API_BASE}/graph`);
-                if (response.ok) {
-                    const graphData = await response.json();
-                    
-                    cy.elements().remove();
-                    
-                    // Add nodes
-                    graphData.nodes.forEach(node => {
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const graphData = await response.json();
+                console.log('📊 Graph data received:', {
+                    nodes: graphData.nodes?.length || 0,
+                    edges: graphData.edges?.length || 0
+                });
+                
+                if (!graphData.nodes || !graphData.edges) {
+                    throw new Error('Invalid graph data structure');
+                }
+                
+                cy.elements().remove();
+                
+                // Add nodes
+                graphData.nodes.forEach((node, index) => {
+                    try {
                         cy.add({
                             group: 'nodes',
                             data: {
@@ -307,10 +352,14 @@
                                 community: node.community
                             }
                         });
-                    });
-                    
-                    // Add edges
-                    graphData.edges.forEach(edge => {
+                    } catch (nodeError) {
+                        console.error(`Error adding node ${index}:`, nodeError, node);
+                    }
+                });
+                
+                // Add edges
+                graphData.edges.forEach((edge, index) => {
+                    try {
                         if (edge.source && edge.target) {
                             cy.add({
                                 group: 'edges',
@@ -321,18 +370,29 @@
                                     weight: edge.weight
                                 }
                             });
+                        } else {
+                            console.warn(`Edge ${index} missing source or target:`, edge);
                         }
-                    });
-                    
-                    // Apply layout
-                    cy.layout({
-                        name: 'fcose',
-                        animate: true,
-                        animationDuration: 1000
-                    }).run();
-                }
+                    } catch (edgeError) {
+                        console.error(`Error adding edge ${index}:`, edgeError, edge);
+                    }
+                });
+                
+                // Apply layout
+                cy.layout({
+                    name: 'fcose',
+                    animate: true,
+                    animationDuration: 1000
+                }).run();
+                
+                console.log('✅ Graph loaded successfully');
+                
             } catch (error) {
-                console.error('Failed to load graph:', error);
+                console.error('❌ Failed to load graph:', error);
+                console.error('Error details:', {
+                    message: error.message,
+                    stack: error.stack
+                });
             }
         }
 

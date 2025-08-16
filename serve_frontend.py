@@ -76,12 +76,20 @@ async def startup_event():
 @app.post("/ingest/upload")
 async def upload_file(file: UploadFile = File(...)):
     """File upload endpoint."""
+    logger.info(f"📤 Upload request received: filename={file.filename}, size={file.size}")
+    
     if not file.filename.lower().endswith('.txt'):
+        logger.error(f"❌ Invalid file type: {file.filename}")
         raise HTTPException(status_code=400, detail="Only .txt files are supported")
 
+    # Read file content for logging
+    content = await file.read()
+    logger.info(f"📄 File content length: {len(content)} bytes")
+    
     # Simulate processing time
     time.sleep(1)
 
+    logger.info(f"✅ Upload successful: {file.filename}")
     return JSONResponse(content={
         "status": "success",
         "filename": file.filename,
@@ -92,9 +100,12 @@ async def upload_file(file: UploadFile = File(...)):
 @app.post("/ingest/url")
 async def ingest_url(request: UrlIngestRequest):
     """URL ingestion endpoint."""
+    logger.info(f"🌐 URL ingestion request: {request.url}")
+    
     # Simulate processing time
     time.sleep(2)
 
+    logger.info(f"✅ URL ingestion successful: {request.url}")
     return JSONResponse(content={
         "status": "success",
         "chunks_created": 25,
@@ -104,6 +115,8 @@ async def ingest_url(request: UrlIngestRequest):
 @app.get("/graph")
 async def get_graph():
     """Return graph data for visualization."""
+    logger.info(f"📊 Graph data requested - returning {len(mock_nodes)} nodes and {len(mock_edges)} edges")
+    
     return JSONResponse(content={
         "nodes": mock_nodes,
         "edges": mock_edges
@@ -113,11 +126,14 @@ async def get_graph():
 async def get_node_details(node_id: str):
     """Return mock node details."""
     try:
+        logger.info(f"🔍 Node details requested: node_id={node_id}")
         node = next((n for n in mock_nodes if str(n["id"]) == str(node_id)), None)
 
         if not node:
+            logger.warning(f"❌ Node not found: {node_id}")
             raise HTTPException(status_code=404, detail="Node not found")
 
+        logger.info(f"✅ Node details found: {node['label']}")
         return JSONResponse(content={
             "id": str(node["id"]),
             "label": str(node["label"]),
@@ -139,28 +155,33 @@ async def get_node_details(node_id: str):
             ]
         })
     except Exception as e:
-        logger.error(f"Error getting node details for {node_id}: {e}")
+        logger.error(f"❌ Error getting node details for {node_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/search")
 async def search(q: str = Query(...), k: int = Query(10)):
     """Mock search endpoint."""
+    logger.info(f"🔍 Search request: query='{q}', k={k}")
+    
+    results = [
+        {
+            "chunk_id": "chunk_1",
+            "text": f"This is a sample search result for '{q}'. It contains relevant information that matches your query.",
+            "doc_id": "doc_1",
+            "score": 0.95
+        },
+        {
+            "chunk_id": "chunk_2", 
+            "text": f"Another search result related to '{q}'. This chunk provides additional context and information.",
+            "doc_id": "doc_2",
+            "score": 0.87
+        }
+    ]
+    
+    logger.info(f"✅ Search completed: found {len(results)} results")
     return JSONResponse(content={
         "query": q,
-        "results": [
-            {
-                "chunk_id": "chunk_1",
-                "text": f"This is a sample search result for '{q}'. It contains relevant information that matches your query.",
-                "doc_id": "doc_1",
-                "score": 0.95
-            },
-            {
-                "chunk_id": "chunk_2", 
-                "text": f"Another search result related to '{q}'. This chunk provides additional context and information.",
-                "doc_id": "doc_2",
-                "score": 0.87
-            }
-        ]
+        "results": results
     })
 
 @app.post("/qa")
@@ -168,6 +189,7 @@ async def ask_question(request: QARequest):
     """Mock Q&A endpoint."""
     try:
         question = request.question
+        logger.info(f"🤖 Q&A request: '{question}'")
 
         # Generate a mock answer based on the question
         answer = f"This is a mock answer to your question: '{question}'. In a real implementation, this would be generated using the knowledge graph and retrieved documents to provide accurate, contextual responses."
@@ -196,7 +218,9 @@ async def ask_question(request: QARequest):
         if not relevant_nodes:
             relevant_nodes = ["Machine Learning", "Python", "Data Science"]
 
-        return JSONResponse(content={
+        logger.info(f"📝 Generated answer with {len(relevant_nodes)} relevant nodes: {relevant_nodes}")
+
+        response_data = {
             "answer": answer,
             "sources": [
                 {
@@ -215,9 +239,13 @@ async def ask_question(request: QARequest):
                 }
             ],
             "nodes_used": relevant_nodes
-        })
+        }
+        
+        logger.info(f"✅ Q&A response ready: {len(response_data['sources'])} sources")
+        return JSONResponse(content=response_data)
+        
     except Exception as e:
-        logger.error(f"Error in Q&A endpoint: {e}")
+        logger.error(f"❌ Error in Q&A endpoint: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/stats")
