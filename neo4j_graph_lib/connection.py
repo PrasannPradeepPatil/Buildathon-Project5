@@ -91,12 +91,13 @@ class Neo4jConnection:
         if parameters is None:
             parameters = {}
         
+        def _execute_write(tx):
+            result = tx.run(query, parameters)
+            return [record.data() for record in result]
+        
         with self.get_session() as session:
             try:
-                result = session.execute_write(
-                    lambda tx: tx.run(query, parameters)
-                )
-                return [record.data() for record in result]
+                return session.execute_write(_execute_write)
             except Exception as e:
                 self.logger.error(f"Write query execution failed: {e}")
                 self.logger.error(f"Query: {query}")
@@ -116,12 +117,13 @@ class Neo4jConnection:
         if parameters is None:
             parameters = {}
         
+        def _execute_read(tx):
+            result = tx.run(query, parameters)
+            return [record.data() for record in result]
+        
         with self.get_session() as session:
             try:
-                result = session.execute_read(
-                    lambda tx: tx.run(query, parameters)
-                )
-                return [record.data() for record in result]
+                return session.execute_read(_execute_read)
             except Exception as e:
                 self.logger.error(f"Read query execution failed: {e}")
                 self.logger.error(f"Query: {query}")

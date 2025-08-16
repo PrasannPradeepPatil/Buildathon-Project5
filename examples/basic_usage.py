@@ -10,15 +10,22 @@ This example demonstrates:
 """
 
 import os
+from dotenv import load_dotenv
 from neo4j_graph_lib import Neo4jGraphLib
 
 
 def main():
+    # Load environment variables from .env file
+    load_dotenv()
+    
     # Database connection configuration
-    # You can set these as environment variables or pass directly
-    uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-    username = os.getenv("NEO4J_USERNAME", "neo4j")
-    password = os.getenv("NEO4J_PASSWORD", "password")
+    uri = os.getenv("NEO4J_URI")
+    username = os.getenv("NEO4J_USERNAME")
+    password = os.getenv("NEO4J_PASSWORD")
+    
+    if not all([uri, username, password]):
+        print("Error: Please set NEO4J_URI, NEO4J_USERNAME, and NEO4J_PASSWORD in .env file")
+        return
     
     # Initialize the library
     graph_lib = Neo4jGraphLib(uri=uri, username=username, password=password)
@@ -35,19 +42,40 @@ def main():
         # Schema Management Example
         print("\n=== Schema Management ===")
         
-        # Create constraints
-        print("Creating constraints...")
-        graph_lib.schema.create_constraint("Person", "id", "UNIQUE")
-        graph_lib.schema.create_constraint("Company", "id", "UNIQUE")
+        # Import schema classes
+        from neo4j_graph_lib.schema_manager import NodeSchema, ConstraintType, IndexType
         
-        # Create indexes
-        print("Creating indexes...")
-        graph_lib.schema.create_index("Person", ["name"])
-        graph_lib.schema.create_index("Company", ["name"])
+        # Create Person node schema
+        print("Creating Person schema...")
+        person_schema = NodeSchema(
+            label="Person",
+            properties={"id": "string", "name": "string", "age": "integer"},
+            constraints=[
+                {"type": ConstraintType.UNIQUE.value, "properties": ["id"]}
+            ],
+            indexes=[
+                {"type": IndexType.BTREE.value, "properties": ["name"]}
+            ]
+        )
+        graph_lib.schema.create_node_schema(person_schema)
+        
+        # Create Company node schema
+        print("Creating Company schema...")
+        company_schema = NodeSchema(
+            label="Company",
+            properties={"id": "string", "name": "string", "industry": "string"},
+            constraints=[
+                {"type": ConstraintType.UNIQUE.value, "properties": ["id"]}
+            ],
+            indexes=[
+                {"type": IndexType.BTREE.value, "properties": ["name"]}
+            ]
+        )
+        graph_lib.schema.create_node_schema(company_schema)
         
         # List constraints and indexes
-        constraints = graph_lib.schema.list_constraints()
-        indexes = graph_lib.schema.list_indexes()
+        constraints = graph_lib.schema.get_constraints()
+        indexes = graph_lib.schema.get_indexes()
         print(f"Constraints: {len(constraints)}")
         print(f"Indexes: {len(indexes)}")
         
@@ -62,8 +90,8 @@ def main():
             "age": 30,
             "email": "alice@example.com"
         }
-        person_node = graph_lib.crud.create_node("Person", person_data)
-        print(f"Created person: {person_node}")
+        person_node_id = graph_lib.crud.create_node("Person", person_data)
+        print(f"Created person with ID: {person_node_id}")
         
         company_data = {
             "id": "c001",
@@ -71,24 +99,26 @@ def main():
             "industry": "Technology",
             "founded": 2010
         }
-        company_node = graph_lib.crud.create_node("Company", company_data)
-        print(f"Created company: {company_node}")
+        company_node_id = graph_lib.crud.create_node("Company", company_data)
+        print(f"Created company with ID: {company_node_id}")
         
         # Create relationship
         print("Creating relationship...")
-        relationship = graph_lib.crud.create_relationship(
-            person_node["id"], company_node["id"],
+        relationship_id = graph_lib.crud.create_relationship(
+            person_node_id, company_node_id,
             "WORKS_FOR",
             {"position": "Software Engineer", "since": 2020}
         )
-        print(f"Created relationship: {relationship}")
+        print(f"Created relationship with ID: {relationship_id}")
         
         # Read operations
         print("\nReading data...")
         
-        # Find node by property
-        found_person = graph_lib.crud.find_node_by_property("Person", "name", "Alice Johnson")
-        print(f"Found person: {found_person}")
+        # Find node by properties
+        found_persons = graph_lib.crud.get_nodes_by_properties("Person", {"name": "Alice Johnson"})
+        print(f"Found persons: {len(found_persons)}")
+        if found_persons:
+            print(f"First person: {found_persons[0].properties}")
         
         # Get all nodes of a label
         all_persons = graph_lib.crud.get_nodes_by_label("Person")
@@ -96,25 +126,29 @@ def main():
         
         # Update operations
         print("\nUpdating data...")
-        updated_person = graph_lib.crud.update_node(
-            person_node["id"], 
+        update_success = graph_lib.crud.update_node(
+            person_node_id, 
             {"age": 31, "city": "San Francisco"}
         )
-        print(f"Updated person: {updated_person}")
+        print(f"Update successful: {update_success}")
         
         # Query Engine Example
         print("\n=== Query Engine ===")
         
         # Find neighbors
-        neighbors = graph_lib.query.find_neighbors(person_node["id"], "WORKS_FOR")
-        print(f"Person's neighbors: {neighbors}")
+        neighbors = graph_lib.query.get_neighbors(person_node_id, depth=1, relationship_types=["WORKS_FOR"])
+        print(f"Person's neighbors: {len(neighbors)}")
+        if neighbors:
+            print(f"First neighbor: {neighbors[0].properties}")
         
         # Search nodes
         search_results = graph_lib.query.search_nodes(
-            "Person", 
-            {"age": {"$gte": 25}}
+            {"age": 30}, 
+            labels=["Person"]
         )
-        print(f"Search results: {search_results}")
+        print(f"Search results: {len(search_results)}")
+        if search_results:
+            print(f"First result: {search_results[0].properties}")
         
         # Get graph statistics
         stats = graph_lib.query.get_graph_statistics()
