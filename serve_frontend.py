@@ -264,42 +264,6 @@ async def get_stats():
         logger.error(f"Error getting stats: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
-
-@app.get("/node/{node_id}")
-async def get_node_info(node_id: str):
-    """Get detailed information about a specific node."""
-    try:
-        # Find the node
-        node = next((n for n in mock_nodes if n["id"] == node_id), None)
-        if not node:
-            raise HTTPException(status_code=404, detail="Node not found")
-        
-        # Return mock node details
-        return JSONResponse(content={
-            "id": node["id"],
-            "label": node["label"],
-            "freq": node["weight"],
-            "community": node["community"],
-            "snippets": [
-                {
-                    "text": f"This is a sample snippet discussing {node['label']} and its applications in modern technology. It provides context about how this concept relates to other topics in the knowledge graph.",
-                    "doc_name": "Sample Document 1",
-                    "doc_id": "doc_1"
-                },
-                {
-                    "text": f"Another relevant snippet that mentions {node['label']} in the context of practical implementation and real-world use cases.",
-                    "doc_name": "Sample Document 2", 
-                    "doc_id": "doc_2"
-                }
-            ]
-        })
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting node info: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
