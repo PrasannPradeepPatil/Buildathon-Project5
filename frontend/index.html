@@ -125,55 +125,87 @@
 
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
-            initCytoscape();
-            loadStats();
-            loadGraph();
+            console.log('📱 DOM Content Loaded');
+            
+            // Wait a bit for external scripts to load
+            setTimeout(() => {
+                initCytoscape();
+                loadStats();
+                // Wait for Cytoscape to initialize before loading graph
+                setTimeout(() => {
+                    if (cy) {
+                        loadGraph();
+                    } else {
+                        console.warn('⚠️ Cytoscape not ready, will retry loading graph when available');
+                    }
+                }, 500);
+            }, 100);
         });
 
         function initCytoscape() {
+            console.log('🔄 Initializing Cytoscape...');
+            
+            // Check if Cytoscape library is loaded
+            if (typeof cytoscape === 'undefined') {
+                console.error('❌ Cytoscape library not loaded');
+                setTimeout(() => initCytoscape(), 1000); // Retry after 1 second
+                return;
+            }
+            
+            const container = document.getElementById('cy');
+            if (!container) {
+                console.error('❌ Cytoscape container element not found');
+                return;
+            }
+            
             try {
                 cy = cytoscape({
-                container: document.getElementById('cy'),
-                style: [
-                    {
-                        selector: 'node',
-                        style: {
-                            'background-color': function(node) {
-                                const community = node.data('community') || 0;
-                                const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57', '#FF9FF3', '#54A0FF'];
-                                return colors[community % colors.length];
-                            },
-                            'label': 'data(label)',
-                            'width': function(node) {
-                                return Math.max(20, Math.min(60, (node.data('weight') || 1) * 5));
-                            },
-                            'height': function(node) {
-                                return Math.max(20, Math.min(60, (node.data('weight') || 1) * 5));
-                            },
-                            'font-size': '10px',
-                            'text-valign': 'center',
-                            'text-halign': 'center'
+                    container: container,
+                    style: [
+                        {
+                            selector: 'node',
+                            style: {
+                                'background-color': function(node) {
+                                    const community = node.data('community') || 0;
+                                    const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57', '#FF9FF3', '#54A0FF'];
+                                    return colors[community % colors.length];
+                                },
+                                'label': 'data(label)',
+                                'width': function(node) {
+                                    return Math.max(20, Math.min(60, (node.data('weight') || 1) * 5));
+                                },
+                                'height': function(node) {
+                                    return Math.max(20, Math.min(60, (node.data('weight') || 1) * 5));
+                                },
+                                'font-size': '10px',
+                                'text-valign': 'center',
+                                'text-halign': 'center'
+                            }
+                        },
+                        {
+                            selector: 'edge',
+                            style: {
+                                'width': function(edge) {
+                                    return Math.max(1, Math.min(5, (edge.data('weight') || 1) * 2));
+                                },
+                                'line-color': '#ccc',
+                                'curve-style': 'bezier'
+                            }
                         }
-                    },
-                    {
-                        selector: 'edge',
-                        style: {
-                            'width': function(edge) {
-                                return Math.max(1, Math.min(5, (edge.data('weight') || 1) * 2));
-                            },
-                            'line-color': '#ccc',
-                            'curve-style': 'bezier'
-                        }
+                    ],
+                    layout: {
+                        name: 'fcose',
+                        animate: true,
+                        animationDuration: 1000
                     }
-                ],
-                layout: {
-                    name: 'fcose',
-                    animate: true,
-                    animationDuration: 1000
-                }
-            });
+                });
 
-            // Node click handler
+                // Verify initialization was successful
+                if (!cy) {
+                    throw new Error('Cytoscape instance is null after initialization');
+                }
+
+                // Node click handler
                 cy.on('tap', 'node', function(evt) {
                     const node = evt.target;
                     showNodeInfo(node.data());
@@ -182,8 +214,16 @@
                 console.log('✅ Cytoscape initialized successfully');
                 
             } catch (error) {
-                console.error('❌ Failed to initialize Cytoscape:', error);
+                console.error('❌ Failed to initialize Cytoscape:', {
+                    error: error,
+                    message: error.message,
+                    stack: error.stack
+                });
                 cy = null;
+                
+                // Try to reinitialize after a delay
+                console.log('🔄 Retrying Cytoscape initialization in 2 seconds...');
+                setTimeout(() => initCytoscape(), 2000);
             }
         }
 
@@ -460,25 +500,54 @@
             // Check if cy is initialized
             if (!cy) {
                 console.warn('⚠️ Cytoscape not initialized, cannot highlight nodes');
+                // Try to reinitialize and retry
+                initCytoscape();
+                setTimeout(() => {
+                    if (cy) {
+                        highlightNodes(nodeLabels);
+                    }
+                }, 1000);
                 return;
             }
             
-            // Reset all nodes
-            cy.nodes().style('border-width', 0);
-            
-            // Highlight mentioned nodes
-            nodeLabels.forEach(label => {
-                const node = cy.nodes().filter(function(node) {
-                    return node.data('label') === label;
-                });
-                if (node.length > 0) {
-                    node.style({
-                        'border-width': 3,
-                        'border-color': '#FF0000'
+            try {
+                // Reset all nodes
+                cy.nodes().style('border-width', 0);
+                
+                // Highlight mentioned nodes
+                nodeLabels.forEach(label => {
+                    const node = cy.nodes().filter(function(node) {
+                        return node.data('label') === label;
                     });
-                }
-            });
+                    if (node.length > 0) {
+                        node.style({
+                            'border-width': 3,
+                            'border-color': '#FF0000'
+                        });
+                        console.log(`✅ Highlighted node: ${label}`);
+                    } else {
+                        console.log(`⚠️ Node not found: ${label}`);
+                    }
+                });
+            } catch (error) {
+                console.error('❌ Error highlighting nodes:', error);
+            }
         }
+
+        // Function to ensure graph is loaded when Cytoscape becomes available
+        function ensureGraphLoaded() {
+            if (cy && cy.nodes().length === 0) {
+                console.log('🔄 Cytoscape is ready but graph not loaded, loading now...');
+                loadGraph();
+            }
+        }
+
+        // Periodically check if we need to load the graph
+        setInterval(() => {
+            if (cy && cy.nodes().length === 0) {
+                ensureGraphLoaded();
+            }
+        }, 3000);
     </script>
 </body>
 </html>
