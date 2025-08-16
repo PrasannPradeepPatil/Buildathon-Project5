@@ -264,17 +264,7 @@ async def get_stats():
         logger.error(f"Error getting stats: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@app.get("/graph")
-async def get_graph():
-    """Return mock graph data."""
-    try:
-        return JSONResponse(content={
-            "nodes": mock_nodes,
-            "edges": mock_edges
-        })
-    except Exception as e:
-        logger.error(f"Error getting graph: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+
 
 @app.get("/node/{node_id}")
 async def get_node_info(node_id: str):
