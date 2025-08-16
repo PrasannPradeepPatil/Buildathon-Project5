@@ -131,7 +131,8 @@
         });
 
         function initCytoscape() {
-            cy = cytoscape({
+            try {
+                cy = cytoscape({
                 container: document.getElementById('cy'),
                 style: [
                     {
@@ -173,10 +174,17 @@
             });
 
             // Node click handler
-            cy.on('tap', 'node', function(evt) {
-                const node = evt.target;
-                showNodeInfo(node.data());
-            });
+                cy.on('tap', 'node', function(evt) {
+                    const node = evt.target;
+                    showNodeInfo(node.data());
+                });
+                
+                console.log('✅ Cytoscape initialized successfully');
+                
+            } catch (error) {
+                console.error('❌ Failed to initialize Cytoscape:', error);
+                cy = null;
+            }
         }
 
         async function uploadFile() {
@@ -338,6 +346,12 @@
                     throw new Error('Invalid graph data structure');
                 }
                 
+                // Check if cy is initialized before trying to use it
+                if (!cy) {
+                    console.error('❌ Cytoscape not initialized');
+                    return;
+                }
+                
                 cy.elements().remove();
                 
                 // Add nodes
@@ -398,6 +412,11 @@
 
         async function showNodeInfo(nodeData) {
             try {
+                if (!cy) {
+                    console.warn('⚠️ Cytoscape not initialized, cannot show node info');
+                    return;
+                }
+                
                 const response = await fetch(`${API_BASE}/node/${nodeData.id}`);
                 if (response.ok) {
                     const info = await response.json();
@@ -438,6 +457,12 @@
         }
 
         function highlightNodes(nodeLabels) {
+            // Check if cy is initialized
+            if (!cy) {
+                console.warn('⚠️ Cytoscape not initialized, cannot highlight nodes');
+                return;
+            }
+            
             // Reset all nodes
             cy.nodes().style('border-width', 0);
             
