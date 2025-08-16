@@ -48,6 +48,57 @@ python examples/basic_usage.py
 **What it covers:**
 - Creating nodes and relationships
 - Setting up constraints and indexes
+
+### 2. Vector Database Example (`vector_database_example.py`)
+
+Comprehensive demonstration of vector database operations using advanced ML models:
+- **Vectorization**: Convert text data into numerical embeddings using SentenceTransformers
+- **Storage**: Store vector embeddings with metadata in an efficient vector database
+- **Retrieval**: Perform similarity searches using FAISS for fast nearest neighbor search
+- **Persistence**: Save and load vector databases to/from disk
+
+**Requirements:**
+```bash
+pip install -r examples/requirements_vector_example.txt
+```
+
+**Run:**
+```bash
+python examples/vector_database_example.py
+```
+
+**What it covers:**
+- SentenceTransformer embeddings for high-quality text vectors
+- FAISS integration for efficient similarity search
+- Multiple embedding methods (SentenceTransformer, TF-IDF)
+- Vector database persistence and loading
+- Comprehensive similarity search demonstrations
+
+### 3. Simple Vector Database Example (`simple_vector_database_example.py`)
+
+Lightweight vector database implementation using only basic dependencies:
+- **Vectorization**: TF-IDF based text vectorization
+- **Storage**: In-memory vector storage with metadata
+- **Retrieval**: Cosine similarity-based search
+- **Minimal Dependencies**: Only requires numpy and scikit-learn
+
+**Requirements:**
+```bash
+pip install numpy scikit-learn
+```
+
+**Run:**
+```bash
+python examples/simple_vector_database_example.py
+```
+
+**What it covers:**
+- TF-IDF vectorization for text data
+- Simple in-memory vector database
+- Cosine similarity search
+- Database statistics and analysis
+- JSON-based persistence
+- Interactive search demo (optional)
 - Finding nodes by properties
 - Updating node properties
 - Basic graph statistics

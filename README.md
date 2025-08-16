@@ -11,6 +11,7 @@ A comprehensive Python library for Neo4j graph database operations, providing hi
 - **Type Safety**: Full type hints and Pydantic model validation
 - **Batch Operations**: Efficient bulk operations for large datasets
 - **Testing**: Comprehensive test suite with pytest
+- **Vector Database Examples**: Complete implementations demonstrating vector storage and similarity search
 
 ## Installation
 
@@ -276,6 +277,58 @@ except CRUDError as e:
 ## License
 
 MIT License - see LICENSE file for details.
+
+## Vector Database Examples
+
+This project includes comprehensive vector database implementations that demonstrate:
+
+### 🚀 Quick Start
+
+```bash
+# Install basic dependencies
+pip install numpy scikit-learn
+
+# Run the interactive demo
+python examples/vector_demo.py --interactive
+
+# Or run the quick demo
+python examples/vector_demo.py
+```
+
+### 📚 Available Examples
+
+1. **Simple Vector Database** (`simple_vector_database_example.py`)
+   - Lightweight implementation using TF-IDF vectorization
+   - In-memory storage with JSON persistence
+   - Perfect for learning and small datasets
+   - Dependencies: `numpy`, `scikit-learn`
+
+2. **Advanced Vector Database** (`vector_database_example.py`)
+   - Production-ready implementation with SentenceTransformers
+   - FAISS integration for efficient similarity search
+   - Multiple embedding methods support
+   - Dependencies: `sentence-transformers`, `faiss-cpu`
+
+3. **Interactive Demo** (`vector_demo.py`)
+   - Hands-on demonstration with custom data
+   - Add documents and perform searches
+   - Real-time similarity search testing
+
+### 🎯 Key Features Demonstrated
+
+- **Vectorization**: Convert text to numerical embeddings
+- **Storage**: Efficient vector storage with metadata
+- **Retrieval**: Similarity search using cosine similarity
+- **Persistence**: Save/load vector databases
+- **Scalability**: Handle large document collections
+
+### 📖 Documentation
+
+See [`examples/VECTOR_DATABASE_GUIDE.md`](examples/VECTOR_DATABASE_GUIDE.md) for:
+- Comprehensive concepts explanation
+- Implementation details
+- Performance optimization tips
+- Production deployment guidance
 
 ## Support
 
