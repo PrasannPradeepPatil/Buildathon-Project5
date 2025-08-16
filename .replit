@@ -1,5 +1,5 @@
 modules = ["python-3.12"]
-run = "app.py"
+run = "python run.py"
 
 [nix]
 channel = "stable-25_05"
