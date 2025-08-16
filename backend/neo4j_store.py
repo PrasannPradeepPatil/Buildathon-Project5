@@ -248,6 +248,10 @@ class Neo4jStore:
                 return dict(record)
             return None
     
+    async def get_statistics(self) -> Dict[str, Any]:
+        """Get database statistics (async version)."""
+        return self.stats()
+    
     def stats(self) -> Dict[str, Any]:
         """Get database statistics."""
         with self.driver.session() as session:

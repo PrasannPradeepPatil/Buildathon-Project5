@@ -9,6 +9,53 @@ from backend.config import DATA_BUDGET_MB, URL_TIMEOUT, MAX_URL_SIZE_MB
 from backend.neo4j_store import Neo4jStore
 from backend.nlp import chunk_text, embed_chunks, extract_concepts, compute_cooccurrence_pairs
 
+class DocumentProcessor:
+    """Document processor for handling file uploads and URL ingestion."""
+    
+    def __init__(self, neo4j_store: Neo4jStore):
+        self.store = neo4j_store
+        self.ingestion_service = IngestionService(neo4j_store)
+    
+    async def process_document(self, content: str, filename: str) -> dict:
+        """Process a document from string content."""
+        try:
+            # Convert string to bytes for compatibility
+            content_bytes = content.encode('utf-8')
+            result = self.ingestion_service.ingest_file("", content_bytes, filename)
+            return {
+                "status": "success",
+                "filename": filename,
+                "chunks_created": result.get('chunks_created', 0),
+                "concepts_extracted": result.get('concepts_extracted', 0),
+                "doc_id": result.get('doc_id', ''),
+                "bytes_ingested": result.get('bytes_ingested', 0)
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "error": str(e),
+                "filename": filename
+            }
+    
+    async def process_url(self, url: str) -> dict:
+        """Process a document from URL."""
+        try:
+            result = self.ingestion_service.ingest_url(url)
+            return {
+                "status": "success",
+                "url": url,
+                "chunks_created": result.get('chunks_created', 0),
+                "concepts_extracted": result.get('concepts_extracted', 0),
+                "doc_id": result.get('doc_id', ''),
+                "bytes_ingested": result.get('bytes_ingested', 0)
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "error": str(e),
+                "url": url
+            }
+
 class IngestionService:
     def __init__(self, neo4j_store: Neo4jStore):
         self.store = neo4j_store
