@@ -1,0 +1,177 @@
+You are an expert full-stack engineer building an MVP in Replit. Update the design to use **Neo4j** for graph storage/analytics and **semantic vector retrieval** (native Neo4j vector indexes). Keep changes minimal but effective. Confirm with me before making major restructuring.
+
+# Product
+**Universal Knowledge-Graph Builder**
+Convert a small document archive into an interactive knowledge graph with natural-language Q&A over the graph.
+
+# Success Criteria
+- Ingest TXT files + URLs, total ≤ 100 MB.
+- Build/maintain a concept graph in **Neo4j**.
+- Semantic search: vector-search top chunks/concepts; hybrid with keyword fallback.
+- NL Q&A returns concise answer + citations, and highlights relevant nodes/edges in UI.
+- One Replit project; one command to run.
+
+# Stack
+- **Backend:** Python 3 + FastAPI, Uvicorn.
+- **Graph DB:** **Neo4j 5.15+ / AuraDB** via `neo4j` Python driver. Use **native vector indexes**.
+- **NLP/Embeddings:** sentence-transformers `all-MiniLM-L6-v2` (dim=384). spaCy for noun-chunking/POS.
+- **Graph UI:** React + Vite + TypeScript + Cytoscape.js.
+- **Auth/Keys:** `.env` with `NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, OPENAI_API_KEY?`.
+- **Optional LLM:** OpenAI (if key present). Else extractive answers from retrieved snippets.
+
+# Project Structure
+- `backend/`
+  - `main.py` (FastAPI app, routes)
+  - `config.py` (env, constants: DATA_BUDGET_MB=100, EMBED_DIM=384)
+  - `ingest.py` (file upload, URL fetch, budget enforcement)
+  - `nlp.py` (chunking, embeddings, concept extraction)
+  - `neo4j_store.py` (**all persistence in Neo4j**, schema bootstrap, upserts, queries)
+  - `graph_ops.py` (co-occurrence, community detection via GDS if available; local fallback)
+  - `retrieval.py` (vector + keyword hybrid, scoring)
+  - `qa.py` (context assembly, LLM or extractive answer)
+- `frontend/`
+  - routes: `/` (ingest & graph), `/qa`
+  - components: `Uploader`, `UrlAdder`, `GraphView`, `NodePanel`, `QAPanel`, `SearchBar`, `StatsBar`
+- `README.md`, `.replit`, `replit.nix` / `requirements.txt`, `package.json`
+
+# Neo4j Data Model (labels, relationships, props)
+- `(:Document {id, type: 'file'|'url', name, url?, bytes, createdAt})`
+- `(:Chunk {id, text, start, end, docId, embedding: List<Float>[384]})`
+- `(:Concept {id, label, lemma, freq, embedding?: List<Float>[384]})`  // concept embedding optional
+- Relationships:
+  - `(:Document)-[:HAS_CHUNK]->(:Chunk)`
+  - `(:Chunk)-[:MENTIONS]->(:Concept)`
+  - `(:Concept)-[:CO_OCCURS {weight}]->(:Concept)`  // undirected; store as two directed or single with convention
+
+# Neo4j Schema Bootstrap (run once on startup)
+- Uniqueness:
+  - `CREATE CONSTRAINT doc_id IF NOT EXISTS FOR (d:Document) REQUIRE d.id IS UNIQUE;`
+  - `CREATE CONSTRAINT chunk_id IF NOT EXISTS FOR (c:Chunk) REQUIRE c.id IS UNIQUE;`
+  - `CREATE CONSTRAINT concept_label IF NOT EXISTS FOR (k:Concept) REQUIRE k.label IS UNIQUE;`
+- Fulltext (optional but recommended):
+  - `CALL db.index.fulltext.createNodeIndex('chunk_text_idx',['Chunk'],['text'])`
+- **Vector Indexes** (Neo4j 5 native):
+  - `CREATE VECTOR INDEX chunk_embedding_idx IF NOT EXISTS FOR (c:Chunk) ON (c.embedding) OPTIONS { indexConfig: { 'vector.dimensions': 384, 'vector.similarity_function': 'cosine' } };`
+  - (Optional) `CREATE VECTOR INDEX concept_embedding_idx IF NOT EXISTS FOR (k:Concept) ON (k.embedding) OPTIONS { indexConfig: { 'vector.dimensions': 384, 'vector.similarity_function': 'cosine' } };`
+
+# Core Behaviors (updated for Neo4j)
+1) **Ingestion**
+   - Enforce ≤ 100 MB cumulative (sum of `Document.bytes`).
+   - TXT: read UTF-8, strip control chars. URL: fetch with `trafilatura`/`readability-lxml`, 30s timeout, cap 5 MB per URL, respect robots.txt.
+   - Chunk to ~700 chars with 100 overlap. For each chunk:
+     - Embed (MiniLM, 384).
+     - Upsert `Document`, `Chunk` (+ `embedding`), `HAS_CHUNK`.
+   - **Concept Extraction**: noun chunks + proper nouns via spaCy → normalize (lower, lemma, ≤5 tokens); upsert `Concept` and `MENTIONS` from each `Chunk`.
+   - **Co-occurrence**: within sliding window of chunks from same doc; create/merge `CO_OCCURS` edges with accumulating `weight` (e.g., normalized co-freq or PMI-lite).
+
+2) **Semantic Retrieval (Neo4j vector index)**
+   - **Vector search over chunks**:
+     ```cypher
+     // param: $qvec (list<float>), $k (int)
+     CALL db.index.vector.queryNodes('chunk_embedding_idx', $k, $qvec)
+     YIELD node, score
+     RETURN node AS chunk, score
+     ```
+   - Hybrid scoring: combine vector score with keyword (fulltext) when query has keywords:
+     ```cypher
+     CALL db.index.fulltext.queryNodes('chunk_text_idx', $q) YIELD node, score AS kw
+     // join with vector results by chunk.id; combine: final = α*vec + (1-α)*norm(kw)
+     ```
+   - Map top chunks → their `MENTIONS` concepts; **expand 1–2 hops** via `CO_OCCURS` to assemble a working subgraph:
+     ```cypher
+     MATCH (c:Chunk)-[:MENTIONS]->(k:Concept)
+     WHERE c.id IN $topChunkIds
+     OPTIONAL MATCH (k)-[r:CO_OCCURS]-(k2:Concept)
+     RETURN k, r, k2 LIMIT $limit
+     ```
+
+3) **Q&A**
+   - Embed the question; retrieve top-k chunks (vector/hybrid).
+   - Build context: top sentences from those chunks; include concept labels from neighborhood expansion.
+   - If `OPENAI_API_KEY` present: call small model with a strict system prompt to cite sources (doc name/URL + snippet).
+   - Else: extractive synthesis (MMR-ranked sentences) with 2–4 sentence answer + citations.
+
+4) **Community Detection & Layout**
+   - If **GDS available** (AuraDS or plugin): `CALL gds.louvain.write(...) YIELD communityId` to set `k.community`.
+   - Else fallback: compute communities in Python (networkx) on the fetched JSON subgraph and write back `community` to nodes.
+   - Frontend: Cytoscape `fcose` layout; node size by degree/weight; color by `community`.
+
+5) **Graph JSON for UI**
+   - Build from Cypher:
+     ```cypher
+     MATCH (k:Concept)
+     OPTIONAL MATCH (k)-[e:CO_OCCURS]->(k2:Concept)
+     RETURN COLLECT(DISTINCT { id:k.id, label:k.label, weight:k.freq, community:k.community }) AS nodes,
+            COLLECT(DISTINCT { source:k.id, target:k2.id, weight:e.weight }) AS edges;
+     ```
+
+# API (FastAPI) — same surface, Neo4j-backed
+- `POST /ingest/upload` → counts, bytes ingested.
+- `POST /ingest/url` → { url } → added doc, chunks, concepts, edges.
+- `GET  /graph` → `{ nodes, edges }` (with `community`).
+- `GET  /node/{id}` → concept details + top supporting snippets (chunk text excerpts + doc metadata).
+- `GET  /search?q=...` → hybrid: vector over chunks (or over concepts if you add concept embeddings) + keyword.
+- `POST /qa` → `{ answer, sources: [{docId, snippet, url?, score}], nodes_used: [conceptIds] }`
+- `GET  /stats` → counts: documents/chunks/concepts/edges; size usage.
+
+# Implementation Details
+- **neo4j_store.py**
+  - `bootstrap_schema()`: run constraints/index creation idempotently.
+  - Upsert helpers: `upsert_document`, `upsert_chunk_with_embedding`, `upsert_concept`, `link_mentions`, `bump_cooccurrence`.
+  - Queries: `get_graph()`, `get_node(id)`, `vector_search_chunks(qvec,k)`, `hybrid_search(q,k,alpha)`, `expand_neighborhood(chunkIds,hops)`, `stats()`.
+- **retrieval.py**
+  - `embed_text`, `embed_chunks`, `search_chunks(q, k=10, alpha=0.7)`.
+  - Score normalization utilities; dedupe by chunk/doc; MMR for snippet selection.
+- **qa.py**
+  - Prompt template that **always** returns citations; truncates to 300–500 tokens context.
+  - Extractive fallback: sentence tokenization → cosine sim → 2–4 sentence synthesis.
+- **graph_ops.py**
+  - `compute_communities()`: try GDS; else Python fallback and write `community` to `Concept` nodes.
+
+# Frontend (no big change)
+- Cytoscape renders `{nodes, edges}` with legend for community colors.
+- Node click → right panel: first-seen definition (first sentence from best chunk), top snippets, neighbor list.
+- QA panel with question box, result with linked citations; click a source focuses related nodes.
+
+# Requirements / Deps
+`requirements.txt`:
+- fastapi, uvicorn
+- python-dotenv
+- neo4j
+- sentence-transformers, torch, numpy
+- spacy, en_core_web_sm
+- trafilatura (or readability-lxml + lxml)
+- scikit-learn (for MMR utilities), rapidfuzz (optional)
+- (optional) networkx for fallback communities
+Frontend: react, vite, typescript, cytoscape, axios.
+
+# Config (.env)
+- `NEO4J_URI=neo4j+s://<host>:<port>`
+- `NEO4J_USERNAME=neo4j`
+- `NEO4J_PASSWORD=...`
+- `OPENAI_API_KEY=` (optional)
+- `EMBED_MODEL=sentence-transformers/all-MiniLM-L6-v2`
+- `EMBED_DIM=384`
+- `DATA_BUDGET_MB=100`
+README should include quick steps to create a free **Neo4j AuraDB** instance and paste credentials.
+
+# Tests / Checks
+- Ingest 3 TXT files (~200 KB): ≥ 50 concepts, ≥ 80 co-occurrence edges.
+- Add a URL: linked to its chunks; QA cites URL.
+- `GET /search?q=topic` returns vector + keyword blended results with stable ordering.
+- Ask “What are the main topics?” → answer + 3–5 concept nodes highlighted.
+- Delete DB (new Aura DB) and re-ingest → schema bootstraps cleanly.
+
+# Security & Limits
+- Validate URLs (http/https), robots.txt, sane timeouts.
+- Limit `/ingest/*` rates; hard stop when `sum(Document.bytes) > DATA_BUDGET_MB`.
+- Sanitize file names; never execute uploaded content.
+- Neo4j driver uses encrypted connection (`neo4j+s://`), no secrets in logs.
+
+# Guardrails — ASK BEFORE DOING THESE
+- Changing labels/relationship names or vector index config.
+- Switching embedding model (changes dimension).
+- Adding heavy deps or new file types.
+
+# Definition of Done
+- App runs on Replit; persists graph + vectors in **Neo4j**; supports vector+keyword **hybrid search**; answers NL questions with citations; renders an interactive concept graph with communities and edge weights; all via documented FastAPI endpoints.
