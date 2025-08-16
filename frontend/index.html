@@ -152,11 +152,23 @@
                 return;
             }
             
+            // Check if fcose extension is loaded and register it
+            if (typeof cytoscapeFcose !== 'undefined') {
+                cytoscape.use(cytoscapeFcose);
+                console.log('✅ fcose extension registered');
+            } else {
+                console.warn('⚠️ fcose extension not loaded, will use fallback layout');
+            }
+            
             const container = document.getElementById('cy');
             if (!container) {
                 console.error('❌ Cytoscape container element not found');
                 return;
             }
+            
+            // Determine which layout to use
+            const layoutName = (typeof cytoscapeFcose !== 'undefined') ? 'fcose' : 'cose';
+            console.log(`🎨 Using layout: ${layoutName}`);
             
             try {
                 cy = cytoscape({
@@ -194,9 +206,15 @@
                         }
                     ],
                     layout: {
-                        name: 'fcose',
+                        name: layoutName,
                         animate: true,
-                        animationDuration: 1000
+                        animationDuration: 1000,
+                        // Additional options for both fcose and cose layouts
+                        randomize: false,
+                        componentSpacing: 100,
+                        nodeRepulsion: 400000,
+                        nodeOverlap: 10,
+                        idealEdgeLength: 100
                     }
                 });
 
@@ -432,11 +450,17 @@
                     }
                 });
                 
-                // Apply layout
+                // Apply layout with fallback
+                const layoutName = (typeof cytoscapeFcose !== 'undefined') ? 'fcose' : 'cose';
                 cy.layout({
-                    name: 'fcose',
+                    name: layoutName,
                     animate: true,
-                    animationDuration: 1000
+                    animationDuration: 1000,
+                    randomize: false,
+                    componentSpacing: 100,
+                    nodeRepulsion: 400000,
+                    nodeOverlap: 10,
+                    idealEdgeLength: 100
                 }).run();
                 
                 console.log('✅ Graph loaded successfully');
