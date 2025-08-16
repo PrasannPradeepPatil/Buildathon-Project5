@@ -105,39 +105,68 @@ async def ingest_url(request: UrlIngestRequest):
 @app.get("/graph")
 async def get_graph():
     """Return mock graph data."""
-    return JSONResponse(content={
-        "nodes": mock_nodes,
-        "edges": mock_edges
-    })
+    try:
+        # Ensure all nodes have required properties
+        safe_nodes = []
+        for node in mock_nodes:
+            safe_node = {
+                "id": str(node.get("id", "")),
+                "label": str(node.get("label", "Unknown")),
+                "weight": int(node.get("weight", 1)),
+                "community": int(node.get("community", 0))
+            }
+            safe_nodes.append(safe_node)
+        
+        # Ensure all edges have required properties
+        safe_edges = []
+        for edge in mock_edges:
+            safe_edge = {
+                "source": str(edge.get("source", "")),
+                "target": str(edge.get("target", "")),
+                "weight": int(edge.get("weight", 1))
+            }
+            safe_edges.append(safe_edge)
+        
+        return JSONResponse(content={
+            "nodes": safe_nodes,
+            "edges": safe_edges
+        })
+    except Exception as e:
+        logger.error(f"Error getting graph data: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/node/{node_id}")
 async def get_node_details(node_id: str):
     """Return mock node details."""
-    node = next((n for n in mock_nodes if n["id"] == node_id), None)
-    
-    if not node:
-        raise HTTPException(status_code=404, detail="Node not found")
-    
-    return JSONResponse(content={
-        "id": node["id"],
-        "label": node["label"],
-        "freq": node["weight"],
-        "community": node["community"],
-        "snippets": [
-            {
-                "text": f"This is a sample snippet about {node['label']} from document 1. It contains relevant information that helps understand the concept better.",
-                "doc_name": "sample_document_1.txt"
-            },
-            {
-                "text": f"Another example snippet discussing {node['label']} in more detail. This comes from a different source document.",
-                "doc_name": "sample_document_2.txt"
-            },
-            {
-                "text": f"A third snippet that mentions {node['label']} in the context of related topics and applications.",
-                "doc_name": "sample_document_3.txt"
-            }
-        ]
-    })
+    try:
+        node = next((n for n in mock_nodes if str(n["id"]) == str(node_id)), None)
+        
+        if not node:
+            raise HTTPException(status_code=404, detail="Node not found")
+        
+        return JSONResponse(content={
+            "id": str(node["id"]),
+            "label": str(node["label"]),
+            "freq": int(node.get("weight", 1)),
+            "community": int(node.get("community", 0)),
+            "snippets": [
+                {
+                    "text": f"This is a sample snippet about {node['label']} from document 1. It contains relevant information that helps understand the concept better.",
+                    "doc_name": "sample_document_1.txt"
+                },
+                {
+                    "text": f"Another example snippet discussing {node['label']} in more detail. This comes from a different source document.",
+                    "doc_name": "sample_document_2.txt"
+                },
+                {
+                    "text": f"A third snippet that mentions {node['label']} in the context of related topics and applications.",
+                    "doc_name": "sample_document_3.txt"
+                }
+            ]
+        })
+    except Exception as e:
+        logger.error(f"Error getting node details for {node_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/search")
 async def search(q: str = Query(...), k: int = Query(10)):
@@ -192,16 +221,20 @@ async def ask_question(request: QARequest):
 @app.get("/stats")
 async def get_stats():
     """Return mock statistics."""
-    return JSONResponse(content={
-        "docs": 5,
-        "chunks": 47,
-        "concepts": 8,
-        "edges": 8,
-        "total_bytes": 52428800,  # ~50MB
-        "budget_mb": 100,
-        "used_mb": 50.0,
-        "remaining_mb": 50.0
-    })
+    try:
+        return JSONResponse(content={
+            "docs": 5,
+            "chunks": 47,
+            "concepts": 8,
+            "edges": 8,
+            "total_bytes": 52428800,  # ~50MB
+            "budget_mb": 100,
+            "used_mb": 50.0,
+            "remaining_mb": 50.0
+        })
+    except Exception as e:
+        logger.error(f"Error getting stats: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/health")
 async def health_check():
