@@ -26,3 +26,19 @@ CHUNK_SIZE = 700
 CHUNK_OVERLAP = 100
 URL_TIMEOUT = 30
 MAX_URL_SIZE_MB = 5
+
+def get_settings():
+    """Get application settings."""
+    return {
+        "neo4j_uri": NEO4J_URI,
+        "neo4j_username": NEO4J_USERNAME,
+        "neo4j_password": NEO4J_PASSWORD,
+        "openai_api_key": OPENAI_API_KEY,
+        "embed_model": EMBED_MODEL,
+        "embed_dim": EMBED_DIM,
+        "data_budget_mb": DATA_BUDGET_MB,
+        "chunk_size": CHUNK_SIZE,
+        "chunk_overlap": CHUNK_OVERLAP,
+        "url_timeout": URL_TIMEOUT,
+        "max_url_size_mb": MAX_URL_SIZE_MB
+    }

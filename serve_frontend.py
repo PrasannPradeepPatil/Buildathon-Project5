@@ -26,6 +26,40 @@ try:
 except ImportError as e:
     logging.warning(f"Backend modules not available: {e}")
     BACKEND_AVAILABLE = False
+    
+    # Create dummy classes as fallbacks
+    class DocumentProcessor:
+        def __init__(self, *args, **kwargs):
+            pass
+        async def process_document(self, *args, **kwargs):
+            return {}
+        async def process_url(self, *args, **kwargs):
+            return {}
+    
+    class QAEngine:
+        def __init__(self, *args, **kwargs):
+            pass
+        async def answer_question(self, *args, **kwargs):
+            return {}
+        async def search(self, *args, **kwargs):
+            return {}
+    
+    class GraphOperations:
+        def __init__(self, *args, **kwargs):
+            pass
+        async def get_visualization_data(self, *args, **kwargs):
+            return {}
+        async def get_node_details(self, *args, **kwargs):
+            return {}
+    
+    class Neo4jStore:
+        def __init__(self, *args, **kwargs):
+            pass
+        async def get_statistics(self, *args, **kwargs):
+            return {}
+    
+    def get_settings():
+        return {}
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
