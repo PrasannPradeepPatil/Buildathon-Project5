@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 """
 Unified server that serves both the frontend and backend API
@@ -79,10 +78,10 @@ async def upload_file(file: UploadFile = File(...)):
     """File upload endpoint."""
     if not file.filename.lower().endswith('.txt'):
         raise HTTPException(status_code=400, detail="Only .txt files are supported")
-    
+
     # Simulate processing time
     time.sleep(1)
-    
+
     return JSONResponse(content={
         "status": "success",
         "filename": file.filename,
@@ -95,7 +94,7 @@ async def ingest_url(request: UrlIngestRequest):
     """URL ingestion endpoint."""
     # Simulate processing time
     time.sleep(2)
-    
+
     return JSONResponse(content={
         "status": "success",
         "chunks_created": 25,
@@ -104,46 +103,21 @@ async def ingest_url(request: UrlIngestRequest):
 
 @app.get("/graph")
 async def get_graph():
-    """Return mock graph data."""
-    try:
-        # Ensure all nodes have required properties
-        safe_nodes = []
-        for node in mock_nodes:
-            safe_node = {
-                "id": str(node.get("id", "")),
-                "label": str(node.get("label", "Unknown")),
-                "weight": int(node.get("weight", 1)),
-                "community": int(node.get("community", 0))
-            }
-            safe_nodes.append(safe_node)
-        
-        # Ensure all edges have required properties
-        safe_edges = []
-        for edge in mock_edges:
-            safe_edge = {
-                "source": str(edge.get("source", "")),
-                "target": str(edge.get("target", "")),
-                "weight": int(edge.get("weight", 1))
-            }
-            safe_edges.append(safe_edge)
-        
-        return JSONResponse(content={
-            "nodes": safe_nodes,
-            "edges": safe_edges
-        })
-    except Exception as e:
-        logger.error(f"Error getting graph data: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+    """Return graph data for visualization."""
+    return JSONResponse(content={
+        "nodes": mock_nodes,
+        "edges": mock_edges
+    })
 
 @app.get("/node/{node_id}")
 async def get_node_details(node_id: str):
     """Return mock node details."""
     try:
         node = next((n for n in mock_nodes if str(n["id"]) == str(node_id)), None)
-        
+
         if not node:
             raise HTTPException(status_code=404, detail="Node not found")
-        
+
         return JSONResponse(content={
             "id": str(node["id"]),
             "label": str(node["label"]),
@@ -194,14 +168,14 @@ async def ask_question(request: QARequest):
     """Mock Q&A endpoint."""
     try:
         question = request.question
-        
+
         # Generate a mock answer based on the question
         answer = f"This is a mock answer to your question: '{question}'. In a real implementation, this would be generated using the knowledge graph and retrieved documents to provide accurate, contextual responses."
-        
+
         # Determine relevant nodes based on question content
         relevant_nodes = []
         question_lower = question.lower()
-        
+
         # Simple keyword matching to determine relevant nodes
         node_keywords = {
             "Machine Learning": ["machine", "learning", "ml", "model", "algorithm"],
@@ -213,15 +187,15 @@ async def ask_question(request: QARequest):
             "Statistics": ["statistics", "statistical", "probability", "math"],
             "Algorithms": ["algorithm", "sorting", "complexity", "optimization"]
         }
-        
+
         for node_label, keywords in node_keywords.items():
             if any(keyword in question_lower for keyword in keywords):
                 relevant_nodes.append(node_label)
-        
+
         # Fallback to default nodes if no matches
         if not relevant_nodes:
             relevant_nodes = ["Machine Learning", "Python", "Data Science"]
-        
+
         return JSONResponse(content={
             "answer": answer,
             "sources": [
@@ -288,8 +262,8 @@ if __name__ == "__main__":
     PORT = 5000
     print(f"Starting unified server on port {PORT}")
     print(f"Frontend directory: {FRONTEND_DIR}")
-    
+
     if not FRONTEND_DIR.exists():
         print(f"Warning: Frontend directory {FRONTEND_DIR} does not exist!")
-    
+
     uvicorn.run(app, host="0.0.0.0", port=PORT)

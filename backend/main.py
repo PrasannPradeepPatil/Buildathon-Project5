@@ -178,6 +178,14 @@ async def ask_question(request: QARequest):
         "nodes_used": ["Machine Learning", "Python", "Data Science"]
     })
 
+@app.get("/graph")
+async def get_graph():
+    """Return graph data for visualization."""
+    return JSONResponse(content={
+        "nodes": mock_nodes,
+        "edges": mock_edges
+    })
+
 @app.get("/stats")
 async def get_stats():
     """Return mock statistics."""
