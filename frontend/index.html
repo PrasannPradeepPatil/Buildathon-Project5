@@ -106,7 +106,7 @@
     <script>
         // Global variables
         let cy;
-        const API_BASE = 'http://localhost:5000';
+        const API_BASE = window.location.protocol + '//' + window.location.hostname + ':5000';
 
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {

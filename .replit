@@ -20,6 +20,10 @@ mode = "sequential"
 task = "shell.exec"
 args = "python run.py"
 
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python serve_frontend.py"
+
 [[ports]]
 localPort = 5000
 externalPort = 80
