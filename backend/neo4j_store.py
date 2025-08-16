@@ -27,20 +27,24 @@ class Neo4jStore:
                 session.run("CREATE CONSTRAINT chunk_id IF NOT EXISTS FOR (c:Chunk) REQUIRE c.id IS UNIQUE")
                 session.run("CREATE CONSTRAINT concept_label IF NOT EXISTS FOR (k:Concept) REQUIRE k.label IS UNIQUE")
                 
-                # Fulltext index for keyword search
-                session.run("CALL db.index.fulltext.createNodeIndex('chunk_text_idx', ['Chunk'], ['text']) IF NOT EXISTS")
+                # Fulltext index for keyword search (check if exists first)
+                result = session.run("SHOW INDEXES YIELD name WHERE name = 'chunk_text_idx'")
+                if not list(result):
+                    session.run("CALL db.index.fulltext.createNodeIndex('chunk_text_idx', ['Chunk'], ['text'])")
                 
-                # Vector indexes for semantic search
-                session.run("""
-                    CREATE VECTOR INDEX chunk_embedding_idx IF NOT EXISTS 
-                    FOR (c:Chunk) ON (c.embedding) 
-                    OPTIONS { 
-                        indexConfig: { 
-                            'vector.dimensions': 384, 
-                            'vector.similarity_function': 'cosine' 
-                        } 
-                    }
-                """)
+                # Vector indexes for semantic search (check if exists first)
+                result = session.run("SHOW INDEXES YIELD name WHERE name = 'chunk_embedding_idx'")
+                if not list(result):
+                    session.run("""
+                        CREATE VECTOR INDEX chunk_embedding_idx 
+                        FOR (c:Chunk) ON (c.embedding) 
+                        OPTIONS { 
+                            indexConfig: { 
+                                'vector.dimensions': 384, 
+                                'vector.similarity_function': 'cosine' 
+                            } 
+                        }
+                    """)
                 
                 logger.info("Schema bootstrap completed successfully")
             except Exception as e:
