@@ -1,65 +1,77 @@
-# Neo4j Graph Library
+# Universal Knowledge-Graph Builder
 
-A comprehensive Python library for Neo4j graph database operations, providing high-level abstractions for schema management, CRUD operations, and advanced graph queries.
+Convert a small document archive into an interactive knowledge graph with natural-language Q&A over the graph. Built with Neo4j for graph storage and semantic vector retrieval.
 
 ## Features
 
-- **Connection Management**: Robust Neo4j database connection handling with session management
-- **Schema Management**: Create and manage constraints, indexes, node labels, and relationship types
-- **CRUD Operations**: Comprehensive create, read, update, and delete operations for nodes and relationships
-- **Query Engine**: Advanced graph traversal, path finding, pattern matching, and analytics
-- **Type Safety**: Full type hints and Pydantic model validation
-- **Batch Operations**: Efficient bulk operations for large datasets
-- **Testing**: Comprehensive test suite with pytest
-- **Vector Database Examples**: Complete implementations demonstrating vector storage and similarity search
+- **Document Ingestion**: Upload TXT files and ingest URLs (≤100MB total)
+- **Neo4j Graph Storage**: Semantic graph with concepts, chunks, and co-occurrence relationships
+- **Vector Search**: Native Neo4j vector indexes with hybrid keyword fallback
+- **Natural Language Q&A**: Answer questions with citations and concept highlighting
+- **Interactive UI**: React-based graph visualization with Cytoscape.js
+- **Community Detection**: Automatic concept clustering for better organization
+- **Real-time Updates**: Live graph updates as new content is ingested
 
-## Installation
+## Quick Setup
 
-### From Source
+### 1. Neo4j AuraDB Setup
+1. Go to [Neo4j AuraDB](https://console.neo4j.io/) and create a free account
+2. Create a new database instance
+3. Copy the connection URI, username, and password
 
+### 2. Environment Configuration
 ```bash
-git clone <repository-url>
-cd neo4j-graph-library
-pip install -e .
+cp .env.example .env
+# Edit .env with your Neo4j credentials
 ```
 
-### Dependencies
-
+### 3. Install Dependencies
 ```bash
 pip install -r requirements.txt
+python -m spacy download en_core_web_sm
 ```
 
-## Quick Start
-
-```python
-from neo4j_graph_lib import Neo4jGraphLib
-
-# Initialize the library
-lib = Neo4jGraphLib(
-    uri="bolt://localhost:7687",
-    user="neo4j",
-    password="password"
-)
-
-# Create a constraint
-lib.schema.create_unique_constraint("Person", "email")
-
-# Create nodes
-person_id = lib.crud.create_node("Person", {"name": "Alice", "email": "alice@example.com"})
-company_id = lib.crud.create_node("Company", {"name": "TechCorp"})
-
-# Create relationship
-lib.crud.create_relationship(person_id, company_id, "WORKS_FOR", {"since": "2023"})
-
-# Query data
-results = lib.query.find_nodes_by_property("Person", "name", "Alice")
-print(results)
-
-# Close connection
-lib.close()
+### 4. Run the Application
+```bash
+python run.py
 ```
 
-## API Documentation
+The application will be available at `http://localhost:5000`
+
+## API Usage
+
+The application exposes a FastAPI REST API:
+
+### Upload Documents
+```bash
+curl -X POST -F "file=@document.txt" http://localhost:5000/ingest/upload
+```
+
+### Ingest URLs
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"url":"https://example.com/article"}' \
+  http://localhost:5000/ingest/url
+```
+
+### Get Graph Data
+```bash
+curl http://localhost:5000/graph
+```
+
+### Ask Questions
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"question":"What are the main topics?"}' \
+  http://localhost:5000/qa
+```
+
+### Search Content
+```bash
+curl "http://localhost:5000/search?q=machine learning&k=10"
+```
+
+## API Endpoints
 
 ### Neo4jGraphLib
 

@@ -5,4 +5,16 @@ run = "app.py"
 channel = "stable-25_05"
 
 [deployment]
-run = ["sh", "-c", "app.py"]
+run = ["sh", "-c", "python run.py"]
+
+[workflows]
+runButton = "Start Knowledge Graph Builder"
+
+[[workflows.workflow]]
+name = "Start Knowledge Graph Builder"
+author = 3347991
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python run.py"
