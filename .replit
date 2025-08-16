@@ -5,4 +5,4 @@ run = "app.py"
 channel = "stable-25_05"
 
 [deployment]
-run = ["sh", "-c", "app.py"]
+run = ["sh", "-c", "python run.py"]
