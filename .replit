@@ -18,10 +18,6 @@ mode = "sequential"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python run.py"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
 args = "python serve_frontend.py"
 
 [[ports]]
