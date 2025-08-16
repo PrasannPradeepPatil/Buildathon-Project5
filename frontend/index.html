@@ -250,17 +250,22 @@
 
                 if (response.ok) {
                     const result = await response.json();
+                    console.log('Q&A Response:', result); // Debug log
+                    
                     showAnswer(result);
                     
-                    // Highlight related nodes
-                    if (result.nodes_used) {
+                    // Highlight related nodes with safety check
+                    if (result && result.nodes_used && Array.isArray(result.nodes_used)) {
                         highlightNodes(result.nodes_used);
+                    } else {
+                        console.warn('No nodes_used found in response or not an array');
                     }
                 } else {
                     const error = await response.json();
                     alert(`Question failed: ${error.detail}`);
                 }
             } catch (error) {
+                console.error('Q&A Error:', error);
                 alert(`Question failed: ${error.message}`);
             }
         }

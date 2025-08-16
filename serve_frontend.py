@@ -192,31 +192,59 @@ async def search(q: str = Query(...), k: int = Query(10)):
 @app.post("/qa")
 async def ask_question(request: QARequest):
     """Mock Q&A endpoint."""
-    question = request.question
-    
-    # Generate a mock answer based on the question
-    answer = f"This is a mock answer to your question: '{question}'. In a real implementation, this would be generated using the knowledge graph and retrieved documents to provide accurate, contextual responses."
-    
-    return JSONResponse(content={
-        "answer": answer,
-        "sources": [
-            {
-                "snippet": f"Relevant snippet 1 that helps answer the question about {question[:20]}...",
-                "score": 0.92,
-                "docId": "doc_1",
-                "doc_name": "Sample Document 1",
-                "url": "https://example.com/doc1"
-            },
-            {
-                "snippet": f"Relevant snippet 2 providing additional context for {question[:20]}...",
-                "score": 0.85,
-                "docId": "doc_2", 
-                "doc_name": "Sample Document 2",
-                "url": "https://example.com/doc2"
-            }
-        ],
-        "nodes_used": ["Machine Learning", "Python", "Data Science"]
-    })
+    try:
+        question = request.question
+        
+        # Generate a mock answer based on the question
+        answer = f"This is a mock answer to your question: '{question}'. In a real implementation, this would be generated using the knowledge graph and retrieved documents to provide accurate, contextual responses."
+        
+        # Determine relevant nodes based on question content
+        relevant_nodes = []
+        question_lower = question.lower()
+        
+        # Simple keyword matching to determine relevant nodes
+        node_keywords = {
+            "Machine Learning": ["machine", "learning", "ml", "model", "algorithm"],
+            "Neural Networks": ["neural", "network", "neuron", "deep"],
+            "Deep Learning": ["deep", "learning", "neural", "cnn", "rnn"],
+            "Python": ["python", "programming", "code", "script"],
+            "Programming": ["programming", "code", "software", "development"],
+            "Data Science": ["data", "science", "analysis", "statistics"],
+            "Statistics": ["statistics", "statistical", "probability", "math"],
+            "Algorithms": ["algorithm", "sorting", "complexity", "optimization"]
+        }
+        
+        for node_label, keywords in node_keywords.items():
+            if any(keyword in question_lower for keyword in keywords):
+                relevant_nodes.append(node_label)
+        
+        # Fallback to default nodes if no matches
+        if not relevant_nodes:
+            relevant_nodes = ["Machine Learning", "Python", "Data Science"]
+        
+        return JSONResponse(content={
+            "answer": answer,
+            "sources": [
+                {
+                    "snippet": f"Relevant snippet 1 that helps answer the question about {question[:20]}...",
+                    "score": 0.92,
+                    "docId": "doc_1",
+                    "doc_name": "Sample Document 1",
+                    "url": "https://example.com/doc1"
+                },
+                {
+                    "snippet": f"Relevant snippet 2 providing additional context for {question[:20]}...",
+                    "score": 0.85,
+                    "docId": "doc_2", 
+                    "doc_name": "Sample Document 2",
+                    "url": "https://example.com/doc2"
+                }
+            ],
+            "nodes_used": relevant_nodes
+        })
+    except Exception as e:
+        logger.error(f"Error in Q&A endpoint: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/stats")
 async def get_stats():
